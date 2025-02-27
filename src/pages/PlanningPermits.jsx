@@ -8,35 +8,32 @@ const PlanningPermits = () => {
     const [selectedAddress, setSelectedAddress] = useState(null);
     const [permits, setPermits] = useState([]);
     const [permitsLoading, setPermitsLoading] = useState(false);
+    const [parcelData, setParcelData] = useState([]);
+    const [selectedParcel, setSelectedParcel] = useState([]);
     const [selectedLocation, setSelectedLocation] = useState({
-        lat: 48.852861, // Replace with real latitude
-        lon: 2.339526, // Replace with real longitude
-        address: "1 cour de Rohan",
+        lat: 48.8531775, // Replace with real latitude
+        lon: 2.3393336, // Replace with real longitude
+        address: "1 cour de Rohan, Paris",
+        boundingbox: ["48.8531275", "48.8532275", "2.3392836", "2.3393836"],
     });
 
     useEffect(() => {
-        // const fetchParcelData = async () => {
-        //     // setLoading(true);
-        //     try {
-        //         const response = await fetch(
-        //         `https://apicarto.ign.fr/api/cadastre/parcelle?geojson=true&adresse=${encodeURIComponent(selectedLocation.address)}`
-        //         );
-        //         const data = await response.json();
+        // Step 2: Load cadastral data (GeoJSON file)
+        fetch("/cadastre-75-parcelles.json")
+            .then((res) => res.json())
+            .then((geojson) => {
+                setParcelData(geojson);
 
-        //         if (data.features && data.features.length > 0) {
-        //             // setParcelData(data.features[0].geometry.coordinates[0]);
-        //             return data.features[0].geometry.coordinates[0];
-        //         } else {
-        //             // setParcelData(null);
-        //             return null;
-        //             console.warn("No parcel data found for this address.");
-        //         }
-        //     } catch (error) {
-        //         console.error("Error fetching parcel data:", error);
-        //     } finally {
-        //         // setLoading(false);
-        //     }
-        // };
+                // Step 3: Find the parcel that contains the address
+                const foundParcel = geojson.features.find((feature) =>
+                    feature.geometry.coordinates.some((polygon) =>
+                        polygon.some(([lon, lat]) => Math.abs(lat - selectedLocation.lat) < 0.0005 && Math.abs(lon - selectedLocation.lon) < 0.0005)
+                    )
+                );
+
+                if (foundParcel) setSelectedParcel(foundParcel);
+            })
+            .catch((err) => console.error("Error loading parcels:", err));
 
         const fetchAddresses = async () => {
             if (searchQuery.length < 3) {
@@ -93,16 +90,6 @@ const PlanningPermits = () => {
         setPermitsLoading(false);
     };
 
-    // const handleAdressClick = async (address) => {
-    //     setLoading(true);
-    //     const permitsData = await fetchPermits(address);
-    //     const parcelsData = await fetchParcelData(address);
-
-    //     setPermits(permitsData);
-    //     setParcelData(parcelsData);
-    //     setLoading(false);
-    // }
-
     return (
         <div className="container my-4">
             <h1 className="mb-4">Planning Permits</h1>
@@ -157,7 +144,7 @@ const PlanningPermits = () => {
             {/* No Results Message */}
             {!loading && searchQuery.length >= 3 && addresses.length === 0 && <p className="mt-3">No addresses found.</p>}
 
-            {/* Selected Address */}
+            {/* Selected Address & Map */}
             {selectedAddress && (
                 <div className="mt-4">
                     <h3>Planning Permits for: {selectedAddress.properties.label}</h3>
@@ -174,7 +161,13 @@ const PlanningPermits = () => {
                     {/* Embed the cadastral map above the table */}
                     {selectedLocation && (
                         <div className="my-4">
-                            <CadastralMap lat={selectedLocation.lat} lon={selectedLocation.lon} address={selectedLocation.address} />
+                            <CadastralMap
+                                lat={selectedLocation.lat}
+                                lon={selectedLocation.lon}
+                                address={selectedLocation.address}
+                                parcelData={parcelData}
+                                selectedParcel={selectedParcel}
+                            />
                         </div>
                     )}
 
