@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Home = () => {
     const [districts, setDistricts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate(); // Hook for navigation
 
     useEffect(() => {
-        fetch("https://opendata.paris.fr/api/records/1.0/search/?dataset=arrondissements&rows=100")
+        fetch("https://opendata.paris.fr/api/records/1.0/search/?dataset=arrondissements&rows=1000")
             .then((response) => response.json())
             .then((data) => {
                 const sortedDistricts = data.records
@@ -23,19 +24,29 @@ const Home = () => {
 
     return (
         <div className="container mt-4">
-            <h1 className="text-center mb-4">Paris Districts</h1>
+            {/* Heading and Button in the same row */}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h1 className="mb-0">Paris Districts</h1>
+                <button className="btn btn-primary btn-lg" onClick={() => navigate("/planning-permits")}>
+                    Planning Permits
+                </button>
+            </div>
             {loading ? (
-                <p className="text-center">Loading districts...</p>
+                <div className="text-center my-4">
+                    <div className="spinner-border text-primary" role="status">
+                        {/* <span className="sr-only">Loading...</span> */}
+                    </div>
+                </div>
             ) : (
-                <div className="table-responsive">
+                <div className="table-responsive mb-5">
                     <table className="table table-striped table-bordered">
                         <thead className="thead-dark">
                             <tr>
                                 <th>#</th>
-                                <th>District Name</th>
-                                <th>District Number</th>
-                                <th>Area (sq km)</th>
-                                <th>Population</th>
+                                <th>District</th>
+                                <th>Name</th>
+                                {/* <th>Area (sq km)</th> */}
+                                <th>Perimeter</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -43,13 +54,13 @@ const Home = () => {
                                 <tr key={index}>
                                     <td>{index + 1}</td>
                                     <td>
-                                        <Link to={`/district/${district.c_ar}`} className="text-decoration-none">
+                                        <Link to={`/district/${district.c_arinsee}`} className="text-decoration-none">
                                             {district.l_ar || "N/A"}
                                         </Link>
                                     </td>
-                                    <td>{district.c_ar || "N/A"}</td>
-                                    <td>{district.superficie ? `${district.superficie} km²` : "N/A"}</td>
-                                    <td>{district.population ? district.population.toLocaleString() : "N/A"}</td>
+                                    <td>{district.l_aroff || "N/A"}</td>
+                                    {/* <td>{district.surface ? `${district.surface} km²` : "N/A"}</td> */}
+                                    <td>{district.perimetre ? `${district.perimetre} meters` : "N/A"}</td>
                                 </tr>
                             ))}
                         </tbody>

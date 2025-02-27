@@ -3,20 +3,21 @@ import { useParams } from "react-router-dom";
 
 const DistrictPage = () => {
     const { districtCode } = useParams(); // Get district code from URL
-    console.log("District Code:", districtCode);
     const [streets, setStreets] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStreets = async () => {
             try {
-                const apiUrl = `https://opendata.paris.fr/api/records/1.0/search/?dataset=denominations-emprises-voies-actuelles&rows=100&refine.arrdt=${districtCode}`;
-                const response = await fetch(apiUrl);
+                const apiUrl = `https://opendata.paris.fr/api/records/1.0/search/?dataset=denominations-emprises-voies-actuelles&rows=1000&refine.arrdt=${districtCode
+                    .toString()
+                    .slice(-2)}e`;
+                const response = await fetch(apiUrl, { method: "GET" });
                 const data = await response.json();
 
+                console.log(data, districtCode);
                 if (data.records) {
-                    console.log(data, districtCode);
-                    setStreets(data.records.map((record) => record.fields.nom_voie));
+                    setStreets(data.records);
                 }
             } catch (error) {
                 console.error("Error fetching street data:", error);
@@ -29,16 +30,37 @@ const DistrictPage = () => {
     }, [districtCode]);
 
     return (
-        <div>
-            <h2>Streets in District {districtCode}</h2>
+        <div className="container mt-4">
+            <h2 className="text-center mb-4">Streets in District {districtCode}</h2>
             {loading ? (
-                <p>Loading streets...</p>
+                <div className="text-center my-4">
+                    <div className="spinner-border text-primary" role="output">
+                        <span className="sr-only"></span>
+                    </div>
+                </div>
             ) : (
-                <ul>
-                    {streets.map((street, index) => (
-                        <li key={index}>{street}</li>
-                    ))}
-                </ul>
+                <div className="table-responsive mb-5">
+                    <table className="table table-striped table-bordered">
+                        <thead className="thead-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Street Name</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {streets.map((street, index) => (
+                                <tr key={index}>
+                                    <td>{index + 1}</td>
+                                    <td>{street.fields.typo_min}</td>
+                                    <td>{street.fields.typvoie}</td>
+                                    <td>{street.fields.statut}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );
