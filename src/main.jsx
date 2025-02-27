@@ -1,11 +1,17 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import "./index.css";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import Home from "./pages/Home";
+import DistrictPage from "./pages/DistrictPage";
 import "bootstrap/dist/css/bootstrap.min.css";
-import App from "./App.jsx";
 
-createRoot(document.getElementById("root")).render(
-    <StrictMode>
-        <App />
-    </StrictMode>
+ReactDOM.createRoot(document.getElementById("root")).render(
+    <React.StrictMode>
+        <Router>
+            <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/district/:districtCode" element={<DistrictPage />} />
+            </Routes>
+        </Router>
+    </React.StrictMode>
 );
