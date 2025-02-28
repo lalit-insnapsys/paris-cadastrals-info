@@ -6,12 +6,12 @@ const DistrictPage = () => {
     const [streets, setStreets] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
     useEffect(() => {
         const fetchStreets = async () => {
             try {
-                const apiUrl = `https://opendata.paris.fr/api/records/1.0/search/?dataset=denominations-emprises-voies-actuelles&rows=1000&refine.arrdt=${districtCode
-                    .toString()
-                    .slice(-2)}e`;
+                const apiUrl = `${BACKEND_URL}streets/${districtCode}/`;
                 const response = await fetch(apiUrl, { method: "GET" });
                 const data = await response.json();
 

@@ -8,42 +8,22 @@ const PlanningPermits = () => {
     const [selectedAddress, setSelectedAddress] = useState(null);
     const [permits, setPermits] = useState([]);
     const [permitsLoading, setPermitsLoading] = useState(false);
-    const [parcelData, setParcelData] = useState([]);
-    const [selectedParcel, setSelectedParcel] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState({
-        lat: 48.8531775, // Replace with real latitude
-        lon: 2.3393336, // Replace with real longitude
-        address: "1 cour de Rohan, Paris",
-        boundingbox: ["48.8531275", "48.8532275", "2.3392836", "2.3393836"],
-    });
+    // const [buildingData, setBuildingData] = useState([]);
+    const [selectedBuilding, setSelectedBuilding] = useState([]);
+    
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     useEffect(() => {
-        // Step 2: Load cadastral data (GeoJSON file)
-        fetch("/cadastre-75-parcelles.json")
-            .then((res) => res.json())
-            .then((geojson) => {
-                setParcelData(geojson);
-
-                // Step 3: Find the parcel that contains the address
-                const foundParcel = geojson.features.find((feature) =>
-                    feature.geometry.coordinates.some((polygon) =>
-                        polygon.some(([lon, lat]) => Math.abs(lat - selectedLocation.lat) < 0.0005 && Math.abs(lon - selectedLocation.lon) < 0.0005)
-                    )
-                );
-
-                if (foundParcel) setSelectedParcel(foundParcel);
-            })
-            .catch((err) => console.error("Error loading parcels:", err));
-
         const fetchAddresses = async () => {
             if (searchQuery.length < 3) {
                 setAddresses([]);
-                return;
+                return;  
             }
 
             setLoading(true);
+
             try {
-                const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(searchQuery)}&limit=10`);
+                const response = await fetch(`${BACKEND_URL}addresses/${encodeURIComponent(searchQuery)}/`);
                 const data = await response.json();
                 setAddresses(data.features || []);
             } catch (error) {
@@ -55,9 +35,10 @@ const PlanningPermits = () => {
 
         const delayDebounceFn = setTimeout(() => {
             fetchAddresses();
-        }, 500); // Debounce API calls (waits 500ms after user stops typing)
+        }, 500);
 
         return () => clearTimeout(delayDebounceFn);
+
     }, [searchQuery]);
 
     // Function to clear search
@@ -70,42 +51,85 @@ const PlanningPermits = () => {
 
     // Function to fetch permits
     const fetchPermits = async (address) => {
-        setSelectedAddress(address);
+        setSelectedAddress({
+            lat: address.geometry.coordinates[1],
+            lon: address.geometry.coordinates[0],
+            address: address.properties.label,
+            houseNumber: address.properties.housenumber,
+        });
+
         setPermits([]);
-        setPermitsLoading(true);
-
+        setPermitsLoading(true); 
+        setSelectedBuilding(null);
+    
         try {
-            // Example API (replace with actual planning permits API)
-            const response = await fetch(
-                `https://opendata.paris.fr/api/records/1.0/search/?dataset=autorisations-durbanisme-h&rows=1000&q=${encodeURIComponent(
-                    address.properties.name
-                )}&refine.numero_voirie_du_terrain=${encodeURIComponent(address.properties.housenumber)}`
-            );
-
+            const houseNumber = address.properties.housenumber;
+            const fullAddress = address.properties.name;
+            const lat = address.geometry.coordinates[1];
+            const lon = address.geometry.coordinates[0];
+    
+            const apiUrl = `${BACKEND_URL}permits/${encodeURIComponent(houseNumber)}/${encodeURIComponent(fullAddress)}/${lat}/${lon}`;
+            const response = await fetch(apiUrl);
             const data = await response.json();
-            setPermits(data.records || []);
+            console.log(data);
+            
+    
+            if (data.permits && Array.isArray(data.permits.records)) {
+                setPermits(data.permits.records);
+            }
+
+            setSelectedBuilding(data.parcel_data);
+    
+            // fetch("../../public/cadastre-75-parcelles.json")
+            // .then((response) => response.json())
+            // .then((geojson) => {
+
+            //     const foundParcel = geojson.features.find((parcel) => {
+            //         return parcel.properties.id === data.parcel_id;
+            //     });
+
+            //     if (foundParcel) {
+            //         // setSelectedBuilding(foundParcel.geometry.coordinates[0]);
+            //         setSelectedBuilding(foundParcel);
+            //     } else {
+            //         console.warn("No valid parcel found.");
+            //         setSelectedBuilding(null);
+            // }})
+            // .catch((error) => {
+            //     console.error("Error fetching parcel data:", error);
+            //     setSelectedBuilding(null);
+            // })
+
+            // // 🔹 Update logic to handle buildings instead of parcels
+            // if (data.building_geometry && data.building_geometry.coordinates) {
+            //     // const buildingPolygon = data.building_geometry.coordinates[0].map(coord => [coord[1], coord[0]]); // Convert [lon, lat] → [lat, lon]
+    
+            //     // setBuildingData(buildingPolygon); // 🔹 Send formatted polygon coordinates
+            //     setSelectedBuilding(data.building_geometry); // 🔹 Store full building data
+            // } else {
+            //     console.warn("No valid building footprint found.");
+            //     setSelectedBuilding(null);
+            // }
+    
         } catch (error) {
             console.error("Error fetching permits:", error);
+            setPermits([]);
+        } finally {
+            setPermitsLoading(false);
         }
-        setPermitsLoading(false);
     };
-
+    
     return (
         <div className="container my-4">
             <h1 className="mb-4">Planning Permits</h1>
 
-            {/* Label Above Search Bar */}
-            <label htmlFor="searchInput" className="form-label">
-                Search for an Address:
-            </label>
+            <label htmlFor="searchInput" className="form-label">Search for an Address:</label>
 
-            {/* Search Input with Clear Button */}
             <div className="d-flex align-items-center">
                 <input
                     id="searchInput"
                     type="text"
                     className="form-control"
-                    style={{ fontWeight: "bold" }} // Bold input text
                     placeholder="Type an address..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -121,33 +145,21 @@ const PlanningPermits = () => {
                 )}
             </div>
 
-            {/* Loading Spinner */}
-            {loading && (
-                <div className="d-flex justify-content-center mt-3">
-                    <div className="spinner-border text-primary" role="output">
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            )}
+            {loading && <div className="text-center mt-3">Loading addresses...</div>}
 
-            {/* Address Results */}
             {!loading && addresses.length > 0 && (
                 <ul className="list-group mt-3">
                     {addresses.map((address, index) => (
-                        <li key={index} className="list-group-item list-group-item-action" style={{ cursor: "pointer" }} onClick={() => fetchPermits(address)}>
+                        <li key={index} className="list-group-item list-group-item-action" onClick={() => fetchPermits(address)}>
                             {address.properties.label}
                         </li>
                     ))}
                 </ul>
             )}
 
-            {/* No Results Message */}
-            {!loading && searchQuery.length >= 3 && addresses.length === 0 && <p className="mt-3">No addresses found.</p>}
-
-            {/* Selected Address & Map */}
             {selectedAddress && (
                 <div className="mt-4">
-                    <h3>Planning Permits for: {selectedAddress.properties.label}</h3>
+                    <h3>Planning Permits for: {selectedAddress.name}</h3>
 
                     {/* Loader for Permits */}
                     {permitsLoading && (
@@ -159,30 +171,29 @@ const PlanningPermits = () => {
                     )}
 
                     {/* Embed the cadastral map above the table */}
-                    {selectedLocation && (
+                    {selectedAddress && (
                         <div className="my-4">
                             <CadastralMap
-                                lat={selectedLocation.lat}
-                                lon={selectedLocation.lon}
-                                address={selectedLocation.address}
-                                parcelData={parcelData}
-                                selectedParcel={selectedParcel}
+                                lat={selectedAddress.lat}
+                                lon={selectedAddress.lon}
+                                address={selectedAddress.address}
+                                parcelPolygon={selectedBuilding}
                             />
                         </div>
                     )}
 
                     {/* Display Permits in Table */}
-                    {!permitsLoading && permits.length > 0 && (
+                    {!permitsLoading && permits.length > 0 ? (
                         <div className="table-responsive my-3">
                             <table className="table table-striped table-bordered">
-                                <thead className="thead-dark">
+                                <thead>
                                     <tr>
                                         <th>#</th>
                                         <th>Filing Date</th>
                                         <th>File No</th>
                                         <th>Address</th>
                                         <th>File Type</th>
-                                        <th>Description of work</th>
+                                        <th>Description</th>
                                         <th>Decision</th>
                                     </tr>
                                 </thead>
@@ -190,23 +201,22 @@ const PlanningPermits = () => {
                                     {permits.map((permit, index) => (
                                         <tr key={index}>
                                             <td>{index + 1}</td>
-                                            <td>{permit.fields.date_depot || "N/A"}</td>
-                                            <td>{permit.fields.numero_dossier || "N/A"}</td>
+                                            <td>{permit.fields?.date_depot || "N/A"}</td>
+                                            <td>{permit.fields?.numero_dossier || "N/A"}</td>
                                             <td>
-                                                {permit.fields.numero_voirie_du_terrain} {permit.fields.adresse_du_terrain} {permit.fields.arrondissement}
+                                                {permit.fields?.numero_voirie_du_terrain} {permit.fields?.adresse_du_terrain} {permit.fields?.arrondissement}
                                             </td>
-                                            <td>{permit.fields.type_dossier || "N/A"}</td>
-                                            <td>{permit.fields.description_travaux || "N/A"}</td>
-                                            <td>{permit.fields.decision_autorite || "N/A"}</td>
+                                            <td>{permit.fields?.type_dossier || "N/A"}</td>
+                                            <td>{permit.fields?.description_travaux || "N/A"}</td>
+                                            <td>{permit.fields?.decision_autorite || "N/A"}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
+                    ) : (
+                        <p>No permits found for this address.</p>
                     )}
-
-                    {/* No Permits Found Message */}
-                    {!permitsLoading && permits.length === 0 && <p className="mt-3">No permits found for this address.</p>}
                 </div>
             )}
         </div>

@@ -6,8 +6,10 @@ const Home = () => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate(); // Hook for navigation
 
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
     useEffect(() => {
-        fetch("https://opendata.paris.fr/api/records/1.0/search/?dataset=arrondissements&rows=1000")
+        fetch(`${BACKEND_URL}`)
             .then((response) => response.json())
             .then((data) => {
                 const sortedDistricts = data.records
