@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import CadastralMap from "../components/CadastralMap";
+import StreetHistory from "../components/StreetHistory";
 import { monthMap } from "../config/constants";
 
 const PlanningPermits = () => {
@@ -9,7 +10,6 @@ const PlanningPermits = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [permits, setPermits] = useState([]);
   const [permitsLoading, setPermitsLoading] = useState(false);
-  const [streetHistory, setStreetHistory] = useState([]);
   const [selectedParcel, setSelectedParcel] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
 
@@ -52,7 +52,6 @@ const PlanningPermits = () => {
     setPermits([]);
     setSelectedParcel(null);
     setSelectedBuilding(null);
-    setStreetHistory(null);
   };
 
   // Function to fetch permits
@@ -62,20 +61,20 @@ const PlanningPermits = () => {
       lon: address.geometry.coordinates[0],
       address: address.properties.label,
       houseNumber: address.properties.housenumber,
+      districtCode: address.properties.postcode,
+      fullAddress: address.properties.name,
     });
     setPermits([]);
     setAddresses([]);
     setPermitsLoading(true);
     setSelectedBuilding(null);
     setSelectedParcel(null);
-    setStreetHistory(null);
 
     try {
       const houseNumber = address.properties.housenumber;
       const fullAddress = address.properties.name;
       const lat = address.geometry.coordinates[1];
       const lon = address.geometry.coordinates[0];
-      const districtCode = address.properties.postcode;
 
       const apiUrl = `${BACKEND_URL}permits/${encodeURIComponent(
         houseNumber
@@ -87,25 +86,8 @@ const PlanningPermits = () => {
         setPermits(data.permits.records);
       }
 
-      setSelectedParcel(data.parcel_data);
-
-      try {
-        const historyUrl = `${BACKEND_URL}history/${districtCode}/${encodeURIComponent(
-          fullAddress
-        )}`;
-        const historyResponse = await fetch(historyUrl);
-        const historyData = await historyResponse.json();
-
-        if (!historyData.error) {
-          setStreetHistory(historyData);
-        } else {
-          setStreetHistory(null);
-        }
-      } catch (historyError) {
-        console.error("Error fetching street history:", historyError);
-        setStreetHistory(null);
-      }
-
+        setSelectedParcel(data.parcel_data);
+      
       if (
         data.building_all_data &&
         Object.keys(data.building_all_data).length > 0
@@ -115,21 +97,21 @@ const PlanningPermits = () => {
             (acc, [year, features]) => {
               acc[year] = Array.isArray(features)
                 ? features.map((feature) => ({
-                    type: "Feature",
+                  type: "Feature",
                     properties: feature,
                     geometry:
                       feature.geometry && feature.geometry.coordinates
                         ? {
-                            type: "Polygon",
+                    type: "Polygon",
                             coordinates: feature.geometry.coordinates.map(
                               (ring) => ring.map(([x, y]) => [y, x]) // Convert [lon, lat] → [lat, lon]
                             ),
-                          }
+                  }
                         : null,
-                  }))
+                }))
                 : [];
-
-              return acc;
+        
+            return acc;
             },
             {}
           )
@@ -146,7 +128,6 @@ const PlanningPermits = () => {
       setPermits([]);
       setSelectedParcel(null);
       setSelectedBuilding(null);
-      setStreetHistory(null);
     } finally {
       setPermitsLoading(false);
     }
@@ -204,48 +185,10 @@ const PlanningPermits = () => {
       )}
 
       {selectedAddress && (
-        <div className="mt-4">
-          {/* Display Street History Above the Map */}
-          {streetHistory && streetHistory.length > 0 && (
-            <div className="my-4">
-              <h3>Street History</h3>
-              <ul className="list-group">
-                {streetHistory.map((history, index) => (
-                  <li key={index} className="list-group-item">
-                    {history.street_name && (
-                      <p>
-                        <strong>Street Name:</strong> {history.street_name}
-                      </p>
-                    )}
-                    {history.original_reference && (
-                      <p>
-                        <strong>Original Reference:</strong>{" "}
-                        {history.original_reference}
-                      </p>
-                    )}
-                    {history.historical_reference && (
-                      <p>
-                        <strong>Historical Reference:</strong>{" "}
-                        {history.historical_reference}
-                      </p>
-                    )}
-                    {history.opening_reference && (
-                      <p>
-                        <strong>Opening:</strong> {history.opening_reference}
-                      </p>
-                    )}
-                    {history.sanitation_reference && (
-                      <p>
-                        <strong>Sanitation:</strong>{" "}
-                        {history.sanitation_reference}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        <StreetHistory
+          districtCode={selectedAddress.districtCode}
+          fullAddress={selectedAddress.fullAddress}
+        />
       )}
 
       {selectedAddress && (
