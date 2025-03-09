@@ -63,8 +63,8 @@ const PlanningPermits = () => {
       address: address.properties.label,
       houseNumber: address.properties.housenumber,
     });
-
     setPermits([]);
+    setAddresses([]);
     setPermitsLoading(true);
     setSelectedBuilding(null);
     setSelectedParcel(null);
